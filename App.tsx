@@ -247,7 +247,7 @@ const ConfirmModal = ({ title, message, onConfirm, onCancel }: { title: string, 
                  <p className="text-slate-300 text-sm mb-6 leading-relaxed">{message}</p>
                  <div className="flex gap-3">
                      <button onClick={onCancel} className="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold">Отмена</button>
-                     <button onClick={onConfirm} className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-500">Сбросить</button>
+                     <button onClick={onConfirm} className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-500">Подтвердить</button>
                  </div>
              </div>
         </div>
@@ -423,6 +423,10 @@ const App: React.FC = () => {
   const [showLevelModal, setShowLevelModal] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showConfirmReset, setShowConfirmReset] = useState(false); // For reset modal
+  
+  // Admin Confirmation States
+  const [showConfirmClearChat, setShowConfirmClearChat] = useState(false);
+  const [showConfirmGlobalReset, setShowConfirmGlobalReset] = useState(false);
 
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showLoginBonus, setShowLoginBonus] = useState<{show: boolean, streak: number, reward: {money: number, xp: number}} | null>(null);
@@ -1044,17 +1048,24 @@ const App: React.FC = () => {
       alert('Admin Removed');
   };
   
-  const handleClearChat = async () => {
-      if (confirm('Clear all chat messages?')) {
-          await firebaseService.clearChat();
-      }
+  // Handlers for Confirmation Modals
+  const handleClearChatRequest = () => {
+      setShowConfirmClearChat(true);
   };
 
-  const handleGlobalResetToStart = async () => {
-      if (confirm('☢️ WARNING: This will DELETE ALL DATA and reset the game to start. Are you sure?')) {
-          await firebaseService.resetGlobalState();
-          window.location.reload();
-      }
+  const executeClearChat = async () => {
+      await firebaseService.clearChat();
+      setShowConfirmClearChat(false);
+      showToast("Чат успешно очищен");
+  };
+
+  const handleGlobalResetRequest = () => {
+      setShowConfirmGlobalReset(true);
+  };
+
+  const executeGlobalReset = async () => {
+      await firebaseService.resetGlobalState();
+      window.location.reload();
   };
   
   const handleSelfReset = () => {
@@ -1604,10 +1615,10 @@ const App: React.FC = () => {
                   {/* DANGER ZONE */}
                   <div className="bg-red-950/20 border border-red-900/50 p-4 rounded-xl space-y-2">
                       <div className="text-red-500 font-bold text-xs uppercase mb-2">Danger Zone</div>
-                      <button onClick={handleClearChat} className="w-full bg-slate-800 text-slate-300 py-3 rounded-lg font-bold hover:bg-slate-700">
+                      <button onClick={handleClearChatRequest} className="w-full bg-slate-800 text-slate-300 py-3 rounded-lg font-bold hover:bg-slate-700">
                           Clear Chat
                       </button>
-                      <button onClick={handleGlobalResetToStart} className="w-full bg-red-900 text-white py-4 rounded-xl font-black tracking-widest hover:bg-red-800 border border-red-700">
+                      <button onClick={handleGlobalResetRequest} className="w-full bg-red-900 text-white py-4 rounded-xl font-black tracking-widest hover:bg-red-800 border border-red-700">
                           ☢️ RESET ALL TO START ☢️
                       </button>
                   </div>
@@ -2335,6 +2346,25 @@ const App: React.FC = () => {
                     message="Вы действительно хотите удалить весь прогресс? Это действие нельзя отменить. Вы потеряете уровень, инвентарь и баланс."
                     onConfirm={handleSelfReset}
                     onCancel={() => setShowConfirmReset(false)}
+                />
+            )}
+            
+            {/* ADMIN CONFIRMATION MODALS */}
+            {showConfirmClearChat && (
+                <ConfirmModal 
+                    title="Очистка Чата"
+                    message="Вы уверены, что хотите удалить все сообщения чата? Это действие нельзя отменить."
+                    onConfirm={executeClearChat}
+                    onCancel={() => setShowConfirmClearChat(false)}
+                />
+            )}
+
+            {showConfirmGlobalReset && (
+                <ConfirmModal 
+                    title="⚠️ ГЛОБАЛЬНЫЙ СБРОС"
+                    message="ВНИМАНИЕ! Это действие полностью удалит ВСЕ данные игры (пользователей, комнаты, историю). Игру придется начинать с нуля. Вы абсолютно уверены?"
+                    onConfirm={executeGlobalReset}
+                    onCancel={() => setShowConfirmGlobalReset(false)}
                 />
             )}
             
