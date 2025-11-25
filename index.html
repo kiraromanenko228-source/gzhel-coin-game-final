@@ -17,6 +17,7 @@
         overscroll-behavior: none;
         touch-action: manipulation;
         overflow: hidden;
+        -webkit-tap-highlight-color: transparent; /* Remove blue tap box on iOS */
       }
 
       /* Utilities */
@@ -157,7 +158,22 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
+<script>
+    // iOS Gesture Blocker (Prevent Zoom & Rubber Banding)
+    document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
+    document.addEventListener('touchmove', function(event) {
+        if (event.scale !== 1) { event.preventDefault(); }
+    }, { passive: false });
+    
+    // Expand Telegram WebApp on load
+    if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+        // Force header color to match app
+        window.Telegram.WebApp.setHeaderColor?.('#020617');
+        window.Telegram.WebApp.setBackgroundColor?.('#020617');
+    }
+</script>
 </head>
   <body class="text-slate-200 antialiased overflow-hidden select-none">
     <div id="root" class="h-full w-full"></div>
