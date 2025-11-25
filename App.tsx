@@ -460,7 +460,7 @@ const App: React.FC = () => {
     unlockedSkins: ['DEFAULT'],
     equippedSkin: 'DEFAULT',
     loginStreak: 1,
-    lastLoginDate: Date.now(),
+    lastLoginDate: 0, // IMPORTANT: Set to 0 to ensure bonus works for new users
     isAdminGod: false
   });
   
@@ -725,7 +725,8 @@ const App: React.FC = () => {
                      id: tgId, 
                      name: tgUser?.first_name || 'Игрок',
                      avatarSeed: tgUser?.id?.toString() || tgId,
-                     quests: generateDailyQuests()
+                     quests: generateDailyQuests(),
+                     lastLoginDate: 0 // New users need 0 to claim bonus instantly
                  };
             }
         }
@@ -1084,7 +1085,7 @@ const App: React.FC = () => {
           unlockedSkins: ['DEFAULT'],
           equippedSkin: 'DEFAULT',
           loginStreak: 1,
-          lastLoginDate: Date.now()
+          lastLoginDate: 0 // MUST BE 0 to allow instant daily bonus claim
       };
       setPlayer(newPlayer);
       firebaseService.updateUser(newPlayer);
