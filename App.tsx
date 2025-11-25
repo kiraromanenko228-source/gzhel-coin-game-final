@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Tab,
@@ -178,7 +179,7 @@ const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
 
   return (
     <div 
-        className="fixed inset-0 z-[100] bg-gradient-to-br from-[#020617] via-[#0f172a] to-[#1e3a8a] flex flex-col items-center justify-center overflow-hidden" 
+        className="fixed inset-0 z-[200] bg-gradient-to-br from-[#020617] via-[#0f172a] to-[#1e3a8a] flex flex-col items-center justify-center overflow-hidden" 
         onClick={handleInteract}
     >
         {/* Animated Background Patterns (Gzhel Style) */}
@@ -664,16 +665,18 @@ const App: React.FC = () => {
             firebaseService.subscribeToAdmins((admins) => {
                  setAllowedAdmins(admins);
                  
-                 const myId = playerRef.current.id;
-                 const isGod = myId === String(ADMIN_TELEGRAM_ID);
+                 // CRITICAL FIX: Use the tgId determined in this scope if possible, 
+                 // otherwise fall back to player ref. This solves race condition on init.
+                 const currentId = tgId || playerRef.current.id;
+                 const isGod = String(currentId) === String(ADMIN_TELEGRAM_ID);
 
                  // Real-time check
-                 if (myId && !admins.includes(myId) && !isGod) {
+                 if (currentId && !admins.includes(currentId) && !isGod) {
                       setIsAdmin(false);
                       setShowAdminModal(false);
-                 } else if (myId && (admins.includes(myId) || isGod)) {
+                 } else if (currentId && (admins.includes(currentId) || isGod)) {
                       setIsAdmin(true);
-                      setAdminTargetId(myId);
+                      setAdminTargetId(currentId);
                  }
             });
 
@@ -2306,73 +2309,78 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-[#020617]" onClick={handleGlobalClick}>
-      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
-      <GlobalTicker />
-      <AchievementToast achievement={activeAchievement} visible={showAchievement} />
-      {activeQuestToast && <QuestToast text={activeQuestToast.text} rewardMoney={activeQuestToast.reward} visible={!!activeQuestToast} />}
-      {showHistoryModal && renderHistoryModal()}
-      {showLevelModal && <LevelInfoModal level={player.level} xp={player.xp} totalXp={player.totalXp || player.xp} onClose={() => setShowLevelModal(false)} />}
-      {showAdminModal && renderAdminModal()}
-      
-      {/* LEVEL UP MODAL */}
-      {levelUpData && (
-          <LevelUpModal 
-             level={levelUpData.level} 
-             reward={levelUpData.reward} 
-             onClose={() => setLevelUpData(null)} 
-          />
-      )}
-      
-      {showConfirmReset && (
-          <ConfirmModal 
-              title="Сброс Прогресса"
-              message="Вы действительно хотите удалить весь прогресс? Это действие нельзя отменить. Вы потеряете уровень, инвентарь и баланс."
-              onConfirm={handleSelfReset}
-              onCancel={() => setShowConfirmReset(false)}
-          />
-      )}
-      
-      {purchaseNotifs.map(n => <PurchaseNotification key={n.id} text={n.text} />)}
+      {showSplash ? (
+          <SplashScreen onComplete={() => setShowSplash(false)} />
+      ) : (
+          <>
+            <GlobalTicker />
+            <AchievementToast achievement={activeAchievement} visible={showAchievement} />
+            {activeQuestToast && <QuestToast text={activeQuestToast.text} rewardMoney={activeQuestToast.reward} visible={!!activeQuestToast} />}
+            {showHistoryModal && renderHistoryModal()}
+            {showLevelModal && <LevelInfoModal level={player.level} xp={player.xp} totalXp={player.totalXp || player.xp} onClose={() => setShowLevelModal(false)} />}
+            {showAdminModal && renderAdminModal()}
+            
+            {/* LEVEL UP MODAL */}
+            {levelUpData && (
+                <LevelUpModal 
+                   level={levelUpData.level} 
+                   reward={levelUpData.reward} 
+                   onClose={() => setLevelUpData(null)} 
+                />
+            )}
+            
+            {showConfirmReset && (
+                <ConfirmModal 
+                    title="Сброс Прогресса"
+                    message="Вы действительно хотите удалить весь прогресс? Это действие нельзя отменить. Вы потеряете уровень, инвентарь и баланс."
+                    onConfirm={handleSelfReset}
+                    onCancel={() => setShowConfirmReset(false)}
+                />
+            )}
+            
+            {purchaseNotifs.map(n => <PurchaseNotification key={n.id} text={n.text} />)}
 
-      {showLoginBonus && (
-          <LoginBonusModal 
-             streak={showLoginBonus.streak} 
-             reward={showLoginBonus.reward} 
-             onClaim={claimDailyLogin} 
-          />
-      )}
+            {showLoginBonus && (
+                <LoginBonusModal 
+                   streak={showLoginBonus.streak} 
+                   reward={showLoginBonus.reward} 
+                   onClaim={claimDailyLogin} 
+                />
+            )}
 
-      {showSettings && (
-          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-              <div className="bg-slate-900 border border-slate-700 w-full max-w-xs rounded-2xl p-6">
-                  <h2 className="text-white font-bold text-xl mb-4">Настройки</h2>
-                  <div className="flex justify-between text-white mb-6">
-                      <span>Звук</span>
-                      <button onClick={() => setSoundEnabled(!soundEnabled)} className="font-bold text-blue-400">{soundEnabled ? 'ВКЛ' : 'ВЫКЛ'}</button>
-                  </div>
-                  <div className="mb-6">
-                     <button onClick={() => soundManager.play('WIN')} className="text-xs bg-slate-800 text-blue-400 px-3 py-2 rounded-lg border border-slate-700 hover:border-blue-500 w-full">🔊 Тест звука</button>
-                  </div>
-                  <button onClick={() => setShowSettings(false)} className="w-full bg-slate-800 text-white p-3 rounded-xl">Закрыть</button>
-              </div>
-          </div>
+            {showSettings && (
+                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+                    <div className="bg-slate-900 border border-slate-700 w-full max-w-xs rounded-2xl p-6">
+                        <h2 className="text-white font-bold text-xl mb-4">Настройки</h2>
+                        <div className="flex justify-between text-white mb-6">
+                            <span>Звук</span>
+                            <button onClick={() => setSoundEnabled(!soundEnabled)} className="font-bold text-blue-400">{soundEnabled ? 'ВКЛ' : 'ВЫКЛ'}</button>
+                        </div>
+                        <div className="mb-6">
+                           <button onClick={() => soundManager.play('WIN')} className="text-xs bg-slate-800 text-blue-400 px-3 py-2 rounded-lg border border-slate-700 hover:border-blue-500 w-full">🔊 Тест звука</button>
+                        </div>
+                        <button onClick={() => setShowSettings(false)} className="w-full bg-slate-800 text-white p-3 rounded-xl">Закрыть</button>
+                    </div>
+                </div>
+            )}
+            <div className="flex-1 relative overflow-hidden">
+              {activeTab === Tab.GAME && renderGameTab()}
+              {activeTab === Tab.MULTIPLAYER && renderMultiplayerTab()}
+              {activeTab === Tab.SHOP && renderShopTab()}
+              {activeTab === Tab.LEADERS && renderLeaderTab()}
+              {activeTab === Tab.CHAT && renderChatTab()}
+              {activeTab === Tab.PROFILE && renderProfileTab()}
+            </div>
+            <div className="h-[70px] bg-slate-900 border-t border-slate-800 flex justify-between items-center shrink-0 px-2 pb-safe">
+                <button onClick={() => setActiveTab(Tab.GAME)} className={`flex flex-col items-center flex-1 ${activeTab===Tab.GAME ? 'text-blue-500':'text-slate-600'}`}><GameIcon active={activeTab===Tab.GAME}/><span className="text-[9px] font-bold mt-1">ИГРА</span></button>
+                <button onClick={() => setActiveTab(Tab.MULTIPLAYER)} className={`flex flex-col items-center flex-1 ${activeTab===Tab.MULTIPLAYER ? 'text-blue-500':'text-slate-600'}`}><MultiIcon active={activeTab===Tab.MULTIPLAYER}/><span className="text-[9px] font-bold mt-1">PvP</span></button>
+                <button onClick={() => setActiveTab(Tab.SHOP)} className={`flex flex-col items-center flex-1 ${activeTab===Tab.SHOP ? 'text-blue-500':'text-slate-600'}`}><ShopIcon active={activeTab===Tab.SHOP}/><span className="text-[9px] font-bold mt-1">МАГАЗИН</span></button>
+                <button onClick={() => setActiveTab(Tab.LEADERS)} className={`flex flex-col items-center flex-1 ${activeTab===Tab.LEADERS ? 'text-blue-500':'text-slate-600'}`}><LeaderIcon active={activeTab===Tab.LEADERS}/><span className="text-[9px] font-bold mt-1">ТОП</span></button>
+                <button onClick={() => setActiveTab(Tab.CHAT)} className={`flex flex-col items-center flex-1 ${activeTab===Tab.CHAT ? 'text-blue-500':'text-slate-600'}`}><ChatIcon active={activeTab===Tab.CHAT}/><span className="text-[9px] font-bold mt-1">ЧАТ</span></button>
+                <button onClick={() => setActiveTab(Tab.PROFILE)} className={`flex flex-col items-center flex-1 ${activeTab===Tab.PROFILE ? 'text-blue-500':'text-slate-600'}`}><ProfileIcon active={activeTab===Tab.PROFILE}/><span className="text-[9px] font-bold mt-1">Я</span></button>
+            </div>
+          </>
       )}
-      <div className="flex-1 relative overflow-hidden">
-        {activeTab === Tab.GAME && renderGameTab()}
-        {activeTab === Tab.MULTIPLAYER && renderMultiplayerTab()}
-        {activeTab === Tab.SHOP && renderShopTab()}
-        {activeTab === Tab.LEADERS && renderLeaderTab()}
-        {activeTab === Tab.CHAT && renderChatTab()}
-        {activeTab === Tab.PROFILE && renderProfileTab()}
-      </div>
-      <div className="h-[70px] bg-slate-900 border-t border-slate-800 flex justify-between items-center shrink-0 px-2 pb-safe">
-          <button onClick={() => setActiveTab(Tab.GAME)} className={`flex flex-col items-center flex-1 ${activeTab===Tab.GAME ? 'text-blue-500':'text-slate-600'}`}><GameIcon active={activeTab===Tab.GAME}/><span className="text-[9px] font-bold mt-1">ИГРА</span></button>
-          <button onClick={() => setActiveTab(Tab.MULTIPLAYER)} className={`flex flex-col items-center flex-1 ${activeTab===Tab.MULTIPLAYER ? 'text-blue-500':'text-slate-600'}`}><MultiIcon active={activeTab===Tab.MULTIPLAYER}/><span className="text-[9px] font-bold mt-1">PvP</span></button>
-          <button onClick={() => setActiveTab(Tab.SHOP)} className={`flex flex-col items-center flex-1 ${activeTab===Tab.SHOP ? 'text-blue-500':'text-slate-600'}`}><ShopIcon active={activeTab===Tab.SHOP}/><span className="text-[9px] font-bold mt-1">МАГАЗИН</span></button>
-          <button onClick={() => setActiveTab(Tab.LEADERS)} className={`flex flex-col items-center flex-1 ${activeTab===Tab.LEADERS ? 'text-blue-500':'text-slate-600'}`}><LeaderIcon active={activeTab===Tab.LEADERS}/><span className="text-[9px] font-bold mt-1">ТОП</span></button>
-          <button onClick={() => setActiveTab(Tab.CHAT)} className={`flex flex-col items-center flex-1 ${activeTab===Tab.CHAT ? 'text-blue-500':'text-slate-600'}`}><ChatIcon active={activeTab===Tab.CHAT}/><span className="text-[9px] font-bold mt-1">ЧАТ</span></button>
-          <button onClick={() => setActiveTab(Tab.PROFILE)} className={`flex flex-col items-center flex-1 ${activeTab===Tab.PROFILE ? 'text-blue-500':'text-slate-600'}`}><ProfileIcon active={activeTab===Tab.PROFILE}/><span className="text-[9px] font-bold mt-1">Я</span></button>
-      </div>
     </div>
   );
 };
