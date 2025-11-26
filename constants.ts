@@ -1,5 +1,4 @@
 
-
 import { Player, ShopItem, Quest, Achievement } from './types';
 
 // --- CONFIGURATION ---
@@ -28,11 +27,12 @@ export const HOURLY_BONUS_COOLDOWN_MS = 60 * 60 * 1000; // 1 Hour
 
 export const ANIMATION_DURATION_MS = 2500; 
 
-// --- ECONOMY 2.0 ---
-// XP Gained per action
-export const XP_PER_WIN = 50;
-export const XP_PER_LOSS = 15;
-export const XP_PER_PVP_WIN = 100;
+// --- ECONOMY 2.0 (UPDATED XP) ---
+// Fixed XP Rewards to prevent inflation
+export const XP_FIXED_WIN = 150;
+export const XP_FIXED_LOSS = 50;
+export const XP_PVP_BONUS_FLAT = 50; // Flat bonus for playing PvP
+export const MAX_XP_PER_GAME = 50000; // Safety cap per single game (mostly for Oracle buff)
 
 // Progressive Leveling System (Extended to 50)
 export const LEVEL_THRESHOLDS = [
@@ -101,12 +101,12 @@ export const DAILY_LOGIN_REWARDS = [
 ];
 
 export const SHOP_ITEMS: ShopItem[] = [
-  // --- CONSUMABLES ---
+  // --- CONSUMABLES (CHEAPER) ---
   {
     id: 'XP_BOOST',
     name: 'Мудрость Старца',
     description: 'Удваивает опыт (XP) за следующую игру.',
-    price: 1000, 
+    price: 150, 
     icon: '📜',
     type: 'XP_BOOST',
     minLevel: 1
@@ -115,7 +115,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'WHISPER',
     name: 'Шепот Ангела',
     description: 'Дает подсказку о следующем броске (Шанс 80%).',
-    price: 2000,
+    price: 300,
     icon: '👼',
     type: 'HINT',
     minLevel: 2
@@ -124,7 +124,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'INSURANCE',
     name: 'Страховка',
     description: 'PvP: Вернет 50% ставки при проигрыше.',
-    price: 5000,
+    price: 800,
     icon: '🛡️',
     type: 'INSURANCE',
     minLevel: 3
@@ -133,7 +133,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'CRITICAL',
     name: 'Клевер Удачи',
     description: 'PvP: Шанс 10% выиграть x5 вместо x2.',
-    price: 10000,
+    price: 1500,
     icon: '🍀',
     type: 'CRITICAL',
     minLevel: 4
@@ -142,7 +142,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'SHADOW',
     name: 'Плащ Тени',
     description: 'PvP: Скрывает Ник, Аватар, Уровень и Баланс.',
-    price: 15000,
+    price: 2500,
     icon: '🥷',
     type: 'PVP_TRICK',
     minLevel: 5
@@ -151,7 +151,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'HORSESHOE',
     name: 'Золотая Подкова',
     description: 'PvP: Увеличивает выигрыш до x2.8.',
-    price: 25000,
+    price: 4000,
     icon: '🐴',
     type: 'MULTIPLIER',
     minLevel: 6
@@ -162,7 +162,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'SAFETY',
     name: 'Амулет Сохранения',
     description: 'Ваш стрик побед не сбрасывается при проигрыше.',
-    price: 40000,
+    price: 6000,
     icon: '🛡️',
     type: 'UNFAIR',
     minLevel: 8
@@ -171,7 +171,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'CHEATER',
     name: 'Шулерские Кости',
     description: 'Solo: Шанс 60%. PvP: Повышает шанс победы на +10%.',
-    price: 60000,
+    price: 10000,
     icon: '🎲',
     type: 'UNFAIR',
     minLevel: 10
@@ -180,7 +180,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'VAMPIRISM',
     name: 'Вампиризм',
     description: 'PvP: При победе вы получаете +10% от ставки сверху.',
-    price: 100000,
+    price: 15000,
     icon: '🧛',
     type: 'UNFAIR',
     minLevel: 12
@@ -189,19 +189,19 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'PANDORA',
     name: 'Сундук Пандоры',
     description: '50% Шанс получить 50,000 XP или потерять 25,000 XP.',
-    price: 10000, 
+    price: 2000, 
     icon: '📦',
     type: 'GAMBLE',
     minLevel: 5
   },
 
   // --- GOD TIER ITEMS (Rebalanced High Prices) ---
-  // Lvl 15 is 1M XP. Price should be significant.
+  // Reduced to make them accessible but still require levels
   {
     id: 'MAGNET',
     name: 'Магнит Победы',
     description: 'Solo: Шанс 90%. PvP: Повышает шанс победы на +30%.',
-    price: 250000,
+    price: 25000,
     icon: '🧲',
     type: 'GOD_MODE',
     minLevel: 15
@@ -210,7 +210,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'ORACLE',
     name: 'Глаз Оракула',
     description: 'Solo: Точный прогноз. PvP: Повышает шанс победы на +45%.',
-    price: 500000,
+    price: 50000,
     icon: '🔮',
     type: 'GOD_MODE',
     minLevel: 25
@@ -219,7 +219,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'REVERSE',
     name: 'Реверс Времени',
     description: 'Solo/PvP: 100% возврат денег при проигрыше.',
-    price: 1000000,
+    price: 30000, // As requested
     icon: '↩️',
     type: 'GOD_MODE',
     minLevel: 30
@@ -230,7 +230,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'PHOENIX',
     name: 'Феникс',
     description: 'PvP/Solo: 33% шанс воскреснуть после проигрыша (Возврат ставки).',
-    price: 2000000,
+    price: 10000, // As requested
     icon: '🔥',
     type: 'GOD_MODE',
     minLevel: 35
@@ -239,7 +239,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'TITAN',
     name: 'Титан',
     description: 'PvP: Если выигрываете, множитель становится x3.5.',
-    price: 5000000,
+    price: 75000,
     icon: '⚡',
     type: 'GOD_MODE',
     minLevel: 40
@@ -248,7 +248,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'GODS_EYE',
     name: 'Глаз Бога',
     description: 'PvP: Вы видите выбор соперника до броска.',
-    price: 10000000,
+    price: 150000,
     icon: '🧿',
     type: 'GOD_MODE',
     minLevel: 50
@@ -259,7 +259,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'SKIN_GOLD',
     name: 'Монета Олигарха',
     description: 'Тяжелый золотой блеск. Показывает статус.',
-    price: 50000,
+    price: 5000,
     icon: '🪙',
     type: 'SKIN',
     minLevel: 7,
@@ -269,7 +269,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'SKIN_NEON',
     name: 'Кибер-Рубль',
     description: 'Светится в темноте. Для ночных игроков.',
-    price: 100000,
+    price: 10000,
     icon: '🔮',
     type: 'SKIN',
     minLevel: 10,
@@ -335,14 +335,6 @@ export const ACHIEVEMENTS_LIST: Achievement[] = [
     icon: '💎',
     condition: (p: Player) => (p?.stats?.maxBet || 0) >= 10000,
     reward: { money: 1000, xp: 500 }
-  },
-  {
-    id: 'TOLMAS_RICH',
-    title: 'Богаче Толмаса',
-    description: 'Накопите 50,000 ₽',
-    icon: '🎩',
-    condition: (p: Player) => (p?.balance || 0) >= 50000,
-    reward: { money: 5000, xp: 2500 }
   },
   {
     id: 'RICH',
@@ -442,5 +434,13 @@ export const ACHIEVEMENTS_LIST: Achievement[] = [
     icon: '⚡',
     condition: (p: Player) => (p?.isAdminGod || false),
     reward: { money: 1337, xp: 1337 }
+  },
+  {
+    id: 'TOLMAS_RICHER',
+    title: 'Богаче Толмаса',
+    description: 'Накопить 50,000 ₽',
+    icon: '💰',
+    condition: (p: Player) => (p?.balance || 0) >= 50000,
+    reward: { money: 10000, xp: 5000 }
   }
 ];
