@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState, useRef } from 'react';
 import { firebaseService } from '../services/firebaseService';
 import { PublicGameLog } from '../types';
