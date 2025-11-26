@@ -193,6 +193,7 @@ class FirebaseService {
             // Login Streak defaults
             if (u.loginStreak === undefined) u.loginStreak = 0;
             if (u.lastLoginDate === undefined) u.lastLoginDate = 0;
+            if (u.lastBonusClaim === undefined) u.lastBonusClaim = 0;
 
             return u as Player;
         }
@@ -231,6 +232,7 @@ class FirebaseService {
       equippedSkin: player.equippedSkin || 'DEFAULT',
       loginStreak: player.loginStreak || 0,
       lastLoginDate: player.lastLoginDate || 0,
+      lastBonusClaim: player.lastBonusClaim || 0, // ADDED: Persist Hourly Bonus Timer
       activeBuffs: player.activeBuffs || null, // Persist buffs
       isAdminGod: player.isAdminGod || false
     };
