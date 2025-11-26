@@ -24,9 +24,10 @@ import {
   HOURLY_BONUS_COOLDOWN_MS,
   SHOP_ITEMS,
   LEVEL_THRESHOLDS,
-  XP_PER_WIN,
-  XP_PER_LOSS,
-  XP_PER_PVP_WIN,
+  XP_FIXED_WIN,
+  XP_FIXED_LOSS,
+  XP_PVP_BONUS_FLAT,
+  MAX_XP_PER_GAME,
   DAILY_QUEST_TEMPLATES,
   DAILY_LOGIN_REWARDS,
   BASE_WIN_CHANCE,
@@ -39,6 +40,7 @@ import { GlobalTicker } from './components/GlobalTicker';
 import { soundManager } from './services/soundService';
 import { firebaseService } from './services/firebaseService';
 import { onValue } from 'firebase/database';
+import { OpponentProfile } from './components/OpponentProfile';
 
 // Key for saving player state
 const STORAGE_KEY = 'gzhel_player_reset_v8_final'; 
@@ -106,24 +108,20 @@ const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Create local audio instance for full control
     try {
         audioRef.current = new Audio(SOUNDS.INTRO);
         audioRef.current.loop = false;
         audioRef.current.volume = 0.6;
         
-        // Safety: Catch unsupported source error
         audioRef.current.onerror = (e) => {
-            console.warn("Intro audio failed to load - check source URL");
+            console.warn("Intro audio failed to load");
         };
 
-        // Attempt autoplay
         const playPromise = audioRef.current.play();
         if (playPromise !== undefined) {
             playPromise.catch((e) => {
-                if (e.name === 'AbortError') return; // Ignore interruption
-                if (e.name === 'NotSupportedError') return; // Ignore bad source
-                console.log("Autoplay blocked or aborted");
+                if (e.name === 'AbortError') return;
+                // Audio autoplay blocked
                 setShowInteract(true);
             });
         }
@@ -132,19 +130,14 @@ const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
     }
 
     // 8 Seconds Total Duration
-    // 80ms interval * 100 steps = 8000ms
     const interval = setInterval(() => {
         setProgress(p => {
             if (p >= 100) {
                 clearInterval(interval);
-                
-                // Stop music immediately upon completion
                 if (audioRef.current) {
                     audioRef.current.pause();
                     audioRef.current.currentTime = 0;
                 }
-                
-                // Small delay before unmount
                 setTimeout(onComplete, 500); 
                 return 100;
             }
@@ -152,7 +145,6 @@ const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
         });
     }, 80); 
     
-    // Cleanup on unmount
     return () => { 
         clearInterval(interval); 
         if (audioRef.current) {
@@ -165,14 +157,7 @@ const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
   const handleInteract = () => {
       setShowInteract(false);
       if (audioRef.current) {
-          const p = audioRef.current.play();
-          if (p !== undefined) {
-              p.catch(e => {
-                  if (e.name === 'AbortError') return;
-                  if (e.name === 'NotSupportedError') return;
-                  console.error("Play error", e);
-              });
-          }
+          audioRef.current.play().catch(() => {});
       }
       soundManager.unlockAudio(); // Also unlock global manager
   };
@@ -182,20 +167,13 @@ const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
         className="fixed inset-0 z-[200] bg-gradient-to-br from-[#020617] via-[#0f172a] to-[#1e3a8a] flex flex-col items-center justify-center overflow-hidden" 
         onClick={handleInteract}
     >
-        {/* Animated Background Patterns (Gzhel Style) */}
         <div className="absolute inset-0 pointer-events-none opacity-30">
              <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] border-[40px] border-dashed border-blue-600/20 rounded-full animate-[spin_60s_linear_infinite]"></div>
-             <div className="absolute top-[-40%] left-[-40%] w-[180%] h-[180%] border-[20px] border-blue-400/10 rounded-full animate-[spin_45s_linear_infinite_reverse]"></div>
-             <div className="absolute top-[-30%] left-[-30%] w-[160%] h-[160%] border-[60px] border-double border-white/5 rounded-full animate-[spin_80s_linear_infinite]"></div>
         </div>
         
-        {/* Glowing Center Piece */}
         <div className="relative z-10 flex flex-col items-center animate-fade-in-up">
             <div className="relative mb-10 group">
-                {/* Rotating Ring */}
                 <div className="absolute inset-[-20px] rounded-full border-t-4 border-l-4 border-transparent border-t-blue-500 border-l-cyan-400 animate-spin w-[180px] h-[180px] shadow-[0_0_50px_rgba(59,130,246,0.5)]"></div>
-                
-                {/* Logo */}
                 <div className="w-36 h-36 rounded-full bg-[#020617] flex items-center justify-center border-4 border-blue-800 shadow-2xl relative overflow-hidden">
                     <div className="absolute inset-0 bg-blue-900/20 animate-pulse"></div>
                     <span className="text-8xl font-gzhel text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] relative z-10">G</span>
@@ -206,18 +184,10 @@ const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
                 GZHELCOIN
             </h1>
             
-            <div className="mb-12">
-                <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-yellow-100 to-yellow-300 italic tracking-wide animate-pulse">
-                    "Стань богаче Толмаса"
-                </span>
-            </div>
-
-            {/* Percentage Display */}
             <div className="text-blue-300 font-mono font-bold text-lg mb-2 tracking-widest drop-shadow-md">
                 {progress}%
             </div>
 
-            {/* Deluxe Loading Bar */}
             <div className="w-72 h-2 bg-slate-800/50 rounded-full overflow-hidden border border-white/10 relative shadow-[0_0_20px_rgba(0,0,0,0.5)]">
                <div 
                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-600 via-cyan-400 to-white rounded-full transition-all duration-75 ease-linear shadow-[0_0_15px_rgba(34,211,238,0.8)]"
@@ -225,13 +195,9 @@ const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
                ></div>
             </div>
             
-            <div className="mt-4 text-blue-400 font-mono text-xs tracking-[0.3em]">
-                {progress < 100 ? 'INITIALIZING...' : 'READY'}
-            </div>
-            
             {showInteract && (
-                <div className="mt-8 text-slate-500 text-[10px] animate-bounce bg-black/50 px-3 py-1 rounded-full border border-slate-700">
-                    Нажмите на экран для звука
+                <div className="mt-8 text-slate-400 text-xs animate-bounce bg-black/60 px-4 py-2 rounded-full border border-slate-600 font-bold uppercase tracking-wider backdrop-blur-md cursor-pointer">
+                    🔊 Tap to Start Sound
                 </div>
             )}
         </div>
@@ -287,10 +253,9 @@ const LevelInfoModal = ({ level, xp, totalXp, onClose }: { level: number, xp: nu
     )
 }
 
-const AchievementToast = ({ achievement, visible }: { achievement: any, visible: boolean }) => {
-  if (!achievement) return null;
+const AchievementToast = ({ achievement }: { achievement: any }) => {
   return (
-    <div className={`fixed top-12 left-4 right-4 z-[100] transition-all duration-500 transform ${visible ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0'}`}>
+    <div className={`transition-all duration-500 transform translate-y-0 opacity-100 mb-2`}>
        <div className="bg-slate-900 border border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.3)] rounded-2xl p-4 flex items-center gap-4">
           <div className="text-4xl animate-bounce">{achievement.icon}</div>
           <div>
@@ -303,7 +268,7 @@ const AchievementToast = ({ achievement, visible }: { achievement: any, visible:
   );
 };
 
-const QuestToast = ({ text, rewardMoney, visible }: { text: string, rewardMoney: number, visible: boolean }) => {
+const QuestToast = ({ text, rewardMoney, rewardXp, visible }: { text: string, rewardMoney: number, rewardXp: number, visible: boolean }) => {
     return (
       <div className={`fixed top-12 left-4 right-4 z-[100] transition-all duration-500 transform ${visible ? 'translate-y-0 opacity-100' : '-translate-y-20 opacity-0'}`}>
          <div className="bg-slate-900 border border-green-500/50 shadow-[0_0_20px_rgba(34,197,94,0.3)] rounded-2xl p-4 flex items-center gap-4">
@@ -311,7 +276,7 @@ const QuestToast = ({ text, rewardMoney, visible }: { text: string, rewardMoney:
             <div>
                <div className="text-green-500 text-xs font-bold uppercase tracking-widest mb-1">Задание Выполнено!</div>
                <div className="text-white font-bold">{text}</div>
-               <div className="text-[10px] text-yellow-400 font-mono mt-1">+{rewardMoney} ₽</div>
+               <div className="text-[10px] text-yellow-400 font-mono mt-1">+{rewardMoney} ₽ • +{rewardXp} XP</div>
             </div>
          </div>
       </div>
@@ -435,6 +400,7 @@ const App: React.FC = () => {
   
   const [purchaseNotifs, setPurchaseNotifs] = useState<{id: number, text: string}[]>([]);
   const [buffNotif, setBuffNotif] = useState<string | null>(null);
+  const [isProcessingBonus, setIsProcessingBonus] = useState(false); // Spam protection
 
   // Admin Panel State
   const [adminTargetId, setAdminTargetId] = useState('');
@@ -460,7 +426,7 @@ const App: React.FC = () => {
     unlockedSkins: ['DEFAULT'],
     equippedSkin: 'DEFAULT',
     loginStreak: 1,
-    lastLoginDate: 0, // IMPORTANT: Set to 0 to ensure bonus works for new users
+    lastLoginDate: 0, 
     isAdminGod: false
   });
   
@@ -470,11 +436,10 @@ const App: React.FC = () => {
       playerRef.current = player;
   }, [player]);
   
-  const [activeAchievement, setActiveAchievement] = useState<any>(null);
-  const [showAchievement, setShowAchievement] = useState(false);
+  const [achievementQueue, setAchievementQueue] = useState<any[]>([]); // Queue for stacked achievements
   const [hintMessage, setHintMessage] = useState<string | null>(null);
   
-  const [activeQuestToast, setActiveQuestToast] = useState<{text: string, reward: number} | null>(null);
+  const [activeQuestToast, setActiveQuestToast] = useState<{text: string, reward: number, rewardXp: number} | null>(null);
 
   const [betAmount, setBetAmount] = useState<string>('100');
   const [isFlipping, setIsFlipping] = useState(false);
@@ -509,7 +474,7 @@ const App: React.FC = () => {
 
   // PvP Result Cleanup
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout>;
     if (pvpResult) {
       timer = setTimeout(() => {
           setPvpMode('MENU');
@@ -520,6 +485,16 @@ const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, [pvpResult]);
   
+  // Queue Manager for Achievements
+  useEffect(() => {
+    if (achievementQueue.length > 0) {
+        const timer = setTimeout(() => {
+            setAchievementQueue(prev => prev.slice(1));
+        }, 4000);
+        return () => clearTimeout(timer);
+    }
+  }, [achievementQueue]);
+
   // --- DAILY QUESTS & INIT ---
   const generateDailyQuests = (): Quest[] => {
       // Pick 3 random quests from a LARGER pool of templates
@@ -542,7 +517,6 @@ const App: React.FC = () => {
           if (q.id === 'BET_TOTAL' && type === 'BET') progress += amount;
           if (q.id === 'WIN_PVP' && type === 'PVP') progress += amount;
           
-          // New Quests Logic
           if (q.id === 'LOSE_3' && type === 'LOSE') progress += amount;
           if (q.id === 'WIN_STREAK_3' && type === 'STREAK') progress = amount;
           if (q.id === 'PLAY_PVP_5' && type === 'PLAY_PVP') progress += amount;
@@ -554,7 +528,7 @@ const App: React.FC = () => {
                   // Add Rewards (Use addXp to handle leveling correctly)
                   p = addXp(template.rewardXp, p);
                   p.balance += (template.rewardMoney || 0);
-                  setActiveQuestToast({ text: template.title, reward: template.rewardMoney || 0 });
+                  setActiveQuestToast({ text: template.title, reward: template.rewardMoney || 0, rewardXp: template.rewardXp });
                   setTimeout(() => setActiveQuestToast(null), 3000);
               }
               
@@ -642,7 +616,6 @@ const App: React.FC = () => {
 
         let currentPlayer = { ...player };
         
-        // --- ADMIN / PREVIEW MODE LOGIC ---
         let tgId: string | undefined;
         let tgUser: any;
 
@@ -665,16 +638,11 @@ const App: React.FC = () => {
         }
         
         if (tgId) {
-            // Subscribe to real-time admin updates
             firebaseService.subscribeToAdmins((admins) => {
                  setAllowedAdmins(admins);
-                 
-                 // CRITICAL FIX: Use the tgId determined in this scope if possible, 
-                 // otherwise fall back to player ref. This solves race condition on init.
                  const currentId = tgId || playerRef.current.id;
                  const isGod = String(currentId) === String(ADMIN_TELEGRAM_ID);
 
-                 // Real-time check
                  if (currentId && !admins.includes(currentId) && !isGod) {
                       setIsAdmin(false);
                       setShowAdminModal(false);
@@ -684,7 +652,6 @@ const App: React.FC = () => {
                  }
             });
 
-            // Force Admin for Owner in Preview Mode immediately (fixes button missing bug)
             if (tgId === String(ADMIN_TELEGRAM_ID)) {
                 setIsAdmin(true);
             }
@@ -707,10 +674,10 @@ const App: React.FC = () => {
                      level: remoteData.level || 1,
                      loginStreak: remoteData.loginStreak || 0,
                      lastLoginDate: remoteData.lastLoginDate || 0,
+                     lastBonusClaim: remoteData.lastBonusClaim || 0,
                      isAdminGod: remoteData.isAdminGod || false
                  };
 
-                 // CHECK QUEST ROTATION (24 Hours)
                  if (!currentPlayer.quests || currentPlayer.quests.length === 0) {
                      currentPlayer.quests = generateDailyQuests();
                  } else {
@@ -726,7 +693,7 @@ const App: React.FC = () => {
                      name: tgUser?.first_name || 'Игрок',
                      avatarSeed: tgUser?.id?.toString() || tgId,
                      quests: generateDailyQuests(),
-                     lastLoginDate: 0 // New users need 0 to claim bonus instantly
+                     lastLoginDate: 0 
                  };
             }
         }
@@ -770,32 +737,21 @@ const App: React.FC = () => {
     initApp();
   }, []);
 
-  // --- REFINED LEVELING LOGIC ---
   const addXp = (amount: number, currentP: Player) => {
       let p = { ...currentP };
+      if (p.activeBuffs?.xpBoost) amount *= 2;
       
-      // Apply XP Boost if active
-      if (p.activeBuffs?.xpBoost) {
-          amount *= 2;
-      }
-      
-      // Increase both Spendable XP and Lifetime XP
       p.xp += amount;
-      p.totalXp = (p.totalXp ?? p.xp) + amount; // Ensure totalXp tracks correctly
+      p.totalXp = (p.totalXp ?? p.xp) + amount; 
       
-      // Calculate level based on LIFETIME XP (totalXp), so spending money doesn't lower level
       const currentLevel = p.level;
       const calculatedLevel = calculateLevelFromXp(p.totalXp);
       
-      // Only level UP, never down (though totalXp shouldn't decrease)
       if (calculatedLevel > currentLevel) {
           p.level = calculatedLevel;
-          
-          // Level Up Reward Logic
           const levelRewardMoney = calculatedLevel * 1000;
           let extraItem = '';
           
-          // Give a small random item for leveling up
           if (Math.random() > 0.5) {
               const freeItems = ['XP_BOOST', 'WHISPER', 'INSURANCE'];
               const randomItemId = freeItems[Math.floor(Math.random() * freeItems.length)];
@@ -818,7 +774,8 @@ const App: React.FC = () => {
   };
 
   const handleClaimBonus = () => {
-      if (timeToNextBonus > 0) return;
+      if (timeToNextBonus > 0 || isProcessingBonus) return;
+      setIsProcessingBonus(true);
       
       let newPlayer = { ...player };
       newPlayer.balance += HOURLY_BONUS_AMOUNT;
@@ -826,17 +783,17 @@ const App: React.FC = () => {
       newPlayer.stats.bonusStreak = (newPlayer.stats.bonusStreak || 0) + 1;
       
       setPlayer(newPlayer);
-      firebaseService.updateUser(newPlayer);
-      if(soundEnabled) soundManager.play('WIN');
+      firebaseService.updateUser(newPlayer); // Persist immediately
       
-      // Visual Feedback
+      if(soundEnabled) soundManager.play('WIN');
       showToast(`+${HOURLY_BONUS_AMOUNT} ₽`);
+
+      setTimeout(() => setIsProcessingBonus(false), 1000); // Unlock after 1s
   };
 
   const handleUseItem = (itemId: string) => {
       if (isFlipping) return; 
       
-      // 1. Check if we are toggling OFF an active buff
       const currentBuffs = { ...player.activeBuffs } as any;
       const keyMap: Record<string, string> = {
           'INSURANCE': 'insurance',
@@ -858,12 +815,11 @@ const App: React.FC = () => {
 
       const buffKey = keyMap[itemId];
       
-      // If it's a toggleable buff and it is ACTIVE
       if (buffKey && currentBuffs[buffKey]) {
           // DEACTIVATE LOGIC
-          const newBuffs: any = { ...currentBuffs }; // Explicitly cast to any to allow dynamic assignment
+          const newBuffs: any = { ...currentBuffs }; 
           newBuffs[buffKey] = false;
-          if (buffKey === 'whisperResult') newBuffs[buffKey] = null; // Special case
+          if (buffKey === 'whisperResult') newBuffs[buffKey] = null; 
 
           const newInventory = [...player.inventory];
           const invIndex = newInventory.findIndex(i => i.itemId === itemId);
@@ -881,7 +837,7 @@ const App: React.FC = () => {
           return;
       }
 
-      // 2. ACTIVATE LOGIC
+      // ACTIVATE LOGIC
       const invIndex = player.inventory.findIndex(i => i.itemId === itemId);
       if (invIndex === -1) return;
       if (player.inventory[invIndex].count <= 0) return;
@@ -895,7 +851,6 @@ const App: React.FC = () => {
       let itemName = '';
       let updatedPlayer = { ...player };
 
-      // Consumable Item Logic (Instant, cannot be toggled)
       if (itemId === 'PANDORA') {
           const outcome = Math.random();
           if (outcome < 0.5) {
@@ -913,10 +868,7 @@ const App: React.FC = () => {
           return;
       }
       
-      // Buff Activation
       if (itemId === 'WHISPER') {
-           // Instant effect (Show hint), but technically stored as 'whisperResult'. 
-           // Can't really refund a hint once seen. So we treat as consumable.
           const prediction = Math.random() > 0.5 ? CoinSide.HEADS : CoinSide.TAILS;
           newBuffs.whisperResult = prediction;
           itemName = 'Шепот Ангела';
@@ -924,7 +876,6 @@ const App: React.FC = () => {
           setHintMessage(message);
           setTimeout(() => setHintMessage(null), 4000);
       } else {
-          // Standard Toggleable Buffs
           if (itemId === 'INSURANCE') itemName = 'Страховка';
           else if (itemId === 'HORSESHOE') itemName = 'Золотая Подкова';
           else if (itemId === 'XP_BOOST') itemName = 'Мудрость Старца';
@@ -955,9 +906,7 @@ const App: React.FC = () => {
       if (player.xp < item.price) { if(soundEnabled) soundManager.play('ERROR'); return; }
 
       let newPlayer = { ...player };
-      // Spend Currency XP Only
       newPlayer.xp -= item.price;
-      // Do NOT touch totalXp, so level is preserved!
       
       if (item.type === 'SKIN' && item.skinId) {
           if (newPlayer.unlockedSkins.includes(item.skinId)) return;
@@ -985,7 +934,6 @@ const App: React.FC = () => {
       firebaseService.updateUser(newPlayer);
   };
   
-  // --- ADMIN ACTIONS ---
   const handleAdminGive = async (type: 'MONEY' | 'XP') => {
       if (!adminAmount || !adminTargetId) return;
       const amount = parseInt(adminAmount);
@@ -995,9 +943,7 @@ const App: React.FC = () => {
           let cloned = { ...p };
           if (field === 'balance') cloned.balance = val;
           if (field === 'xp') {
-              // Admin Sets Spendable XP
               cloned.xp = val;
-              // Also update Total XP to match so Level matches
               cloned.totalXp = val; 
               cloned.level = calculateLevelFromXp(val); 
           }
@@ -1049,7 +995,6 @@ const App: React.FC = () => {
       alert('Admin Removed');
   };
   
-  // Handlers for Confirmation Modals
   const handleClearChatRequest = () => {
       setShowConfirmClearChat(true);
   };
@@ -1085,7 +1030,7 @@ const App: React.FC = () => {
           unlockedSkins: ['DEFAULT'],
           equippedSkin: 'DEFAULT',
           loginStreak: 1,
-          lastLoginDate: 0 // MUST BE 0 to allow instant daily bonus claim
+          lastLoginDate: 0 
       };
       setPlayer(newPlayer);
       firebaseService.updateUser(newPlayer);
@@ -1109,7 +1054,6 @@ const App: React.FC = () => {
     setShowSingleWin(false);
     setShowSingleLoss(false);
     
-    // Haptic
     try { window.Telegram?.WebApp?.HapticFeedback.impactOccurred('medium'); } catch(e){}
     
     setIsFlipping(true);
@@ -1133,7 +1077,6 @@ const App: React.FC = () => {
       if(soundEnabled) soundManager.play('COIN_LAND');
       let newPlayer = { ...playerRef.current };
       
-      // Consume Buffs
       newPlayer.activeBuffs = { insurance: false, horseshoe: false, whisperResult: null, xpBoost: false, critical: false, shadow: false, magnet: false, oracle: false, reverse: false, cheater: false, safety: false, vampirism: false, phoenix: false, titan: false };
       
       let xpGained = 0;
@@ -1152,9 +1095,14 @@ const App: React.FC = () => {
           profit = Math.floor(bet * multiplier) - bet;
           newPlayer.balance += profit;
           
-          xpGained = XP_PER_WIN;
+          // FIXED XP CALCULATION (WIN)
+          xpGained = XP_FIXED_WIN;
+          
+          if (xpGained > MAX_XP_PER_GAME) xpGained = MAX_XP_PER_GAME;
+
           newPlayer.stats.totalWins += 1;
           newPlayer.stats.currentWinStreak += 1;
+          newPlayer.stats.maxWinStreak = Math.max(newPlayer.stats.maxWinStreak, newPlayer.stats.currentWinStreak);
           
           newPlayer = addToHistory(newPlayer, {
               id: Date.now().toString(),
@@ -1189,11 +1137,15 @@ const App: React.FC = () => {
           
           newPlayer.balance -= loss;
           
-          xpGained = XP_PER_LOSS;
+          // FIXED XP CALCULATION (LOSS)
+          xpGained = XP_FIXED_LOSS;
           
           if (buffs.oracle && !isWin) {
+             // Oracle Refund Bonus: Get XP equal to bet lost
              xpGained += bet; 
           }
+          
+          if (xpGained > MAX_XP_PER_GAME) xpGained = MAX_XP_PER_GAME;
 
           if (!buffs.safety) {
               newPlayer.stats.currentWinStreak = 0;
@@ -1248,7 +1200,7 @@ const App: React.FC = () => {
   
   const resolvePvpGame = (room: PvpRoom, isHost: boolean) => {
       const currentPlayerState = playerRef.current;
-      const buffs = currentPlayerState.activeBuffs || {};
+      const buffs: Partial<ActiveBuffs> = currentPlayerState.activeBuffs || {};
 
       const didHostWin = room.result === room.selectedSide;
       const didIWin = isHost ? didHostWin : !didHostWin;
@@ -1297,14 +1249,18 @@ const App: React.FC = () => {
       
       newPlayer.activeBuffs = { insurance: false, horseshoe: false, whisperResult: null, xpBoost: false, critical: false, shadow: false, magnet: false, oracle: false, reverse: false, cheater: false, safety: false, vampirism: false, phoenix: false, titan: false };
       
-      let xpGained = XP_PER_LOSS;
+      // Calculate PvP XP Base (Win or Loss)
+      let xpGained = 0;
 
       if (didIWin) {
           newPlayer.balance += winPayout;
           newPlayer.stats.totalWins += 1;
           newPlayer.stats.currentWinStreak += 1;
-          xpGained = XP_PER_PVP_WIN;
+          newPlayer.stats.maxWinStreak = Math.max(newPlayer.stats.maxWinStreak, newPlayer.stats.currentWinStreak);
           
+          // FIXED XP CALCULATION (PVP WIN)
+          xpGained = XP_FIXED_WIN + XP_PVP_BONUS_FLAT; 
+
           const profit = winPayout - room.betAmount;
           newPlayer = addToHistory(newPlayer, {
               id: room.id,
@@ -1340,7 +1296,11 @@ const App: React.FC = () => {
 
           if (message) alert(message);
           
+          // FIXED XP CALCULATION (PVP LOSS)
+          xpGained = XP_FIXED_LOSS + XP_PVP_BONUS_FLAT;
+
           if (buffs.oracle) {
+              // Oracle Refund: XP equal to bet lost
               xpGained += room.betAmount; 
           }
 
@@ -1362,6 +1322,8 @@ const App: React.FC = () => {
           newPlayer = updateQuestProgress(newPlayer, 'LOSE');
       }
       
+      if (xpGained > MAX_XP_PER_GAME) xpGained = MAX_XP_PER_GAME;
+      
       newPlayer = addXp(xpGained, newPlayer);
       newPlayer = updateQuestProgress(newPlayer, 'PLAY');
       newPlayer = updateQuestProgress(newPlayer, 'PLAY_PVP', 1);
@@ -1371,43 +1333,33 @@ const App: React.FC = () => {
       checkAchievements(newPlayer);
   };
 
-  const haptic = (type: 'impact' | 'notification' | 'error') => {
-    try {
-        if (window.Telegram?.WebApp?.HapticFeedback) {
-           if (type === 'impact') window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
-           if (type === 'notification') window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-           if (type === 'error') window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
-        }
-    } catch(e) {}
-  };
-
   const checkAchievements = (newPlayer: Player) => {
      if (!newPlayer || !newPlayer.stats) return;
      const currentAchievements = Array.isArray(newPlayer.achievements) ? [...newPlayer.achievements] : [];
-     let achievementUnlocked = false;
      let updatedAchievements = [...currentAchievements];
      let updatedPlayer = { ...newPlayer };
+     let hasUpdates = false;
 
      ACHIEVEMENTS_LIST.forEach(ach => {
          if (!currentAchievements.includes(ach.id)) {
              try {
                  if (ach.condition(updatedPlayer)) {
                      updatedAchievements.push(ach.id);
-                     setActiveAchievement(ach);
-                     setShowAchievement(true);
-                     achievementUnlocked = true;
+                     hasUpdates = true;
+                     
+                     // Add to queue
+                     setAchievementQueue(prev => [...prev, ach]);
                      
                      updatedPlayer.balance += (ach.reward?.money || 0);
                      updatedPlayer = addXp((ach.reward?.xp || 0), updatedPlayer);
                      
-                     setTimeout(() => setShowAchievement(false), 4000);
                      if(soundEnabled) soundManager.play('MATCH_FOUND');
                  }
              } catch (e) {}
          }
      });
 
-     if (achievementUnlocked) {
+     if (hasUpdates) {
          updatedPlayer.achievements = updatedAchievements;
          setPlayer(updatedPlayer);
          firebaseService.updateUser(updatedPlayer);
@@ -1478,13 +1430,12 @@ const App: React.FC = () => {
 
   const handleHostFlip = (side: CoinSide) => {
       if (!activeRoom) return;
-      // Guard: Ensure room is ready and prevent double taps
       if (activeRoom.status !== 'READY') return;
       if (isFlipping) return; 
 
       const winProbability = calculatePvpWinChance(activeRoom, side);
       firebaseService.performFlip(activeRoom.id, side, winProbability);
-      setIsFlipping(true); // Optimistic UI update to prevent double clicks
+      setIsFlipping(true); 
   }
 
   const subscribeToRoomUpdates = (code: string) => {
@@ -1517,13 +1468,6 @@ const App: React.FC = () => {
           setPvpMode('MENU');
           setActiveRoom(null);
       }
-  };
-
-  const handleAdminReset = async () => {
-    if(confirm('ВНИМАНИЕ! Сброс базы данных.')) {
-      await firebaseService.resetGlobalState();
-      window.location.reload();
-    }
   };
 
   // --- RENDERERS ---
@@ -1629,23 +1573,19 @@ const App: React.FC = () => {
   }
 
   const renderGameTab = () => {
-    // Progress calculation using totalXp to show level progress correctly
     const nextLevelXp = getXpForLevel(player.level + 1); 
     const currentLevelBaseXp = getXpForLevel(player.level);
     const totalProgressNeeded = nextLevelXp - currentLevelBaseXp;
     const currentProgress = (player.totalXp || 0) - currentLevelBaseXp;
     
-    // Safety clamp
     let xpProgress = Math.min((currentProgress / totalProgressNeeded) * 100, 100);
     if (xpProgress < 0) xpProgress = 0;
     
-    // Max Level Check
     const isMaxLevel = player.level >= MAX_LEVEL;
     if (isMaxLevel) xpProgress = 100;
 
     const bonusAvailable = timeToNextBonus === 0;
     
-    // Render Quest Info Modal Content
     const renderQuestInfoContent = () => {
         if (!showQuestInfo) return null;
         const lastUpdate = player.quests[0]?.lastUpdated || Date.now();
@@ -1696,7 +1636,7 @@ const App: React.FC = () => {
               
               <button 
                   onClick={handleClaimBonus}
-                  disabled={!bonusAvailable}
+                  disabled={!bonusAvailable || isProcessingBonus}
                   className={`px-3 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 transition-all ${bonusAvailable ? 'bg-green-600/20 border-green-500 text-green-400 animate-pulse' : 'bg-slate-800 border-slate-700 text-slate-500'}`}
               >
                   <span>🎁</span>
@@ -1713,15 +1653,20 @@ const App: React.FC = () => {
               </div>
           </div>
           <div className="flex gap-2 overflow-x-auto no-scrollbar">
-              {player.quests.map(q => (
+              {player.quests.map(q => {
+                  const tmpl = DAILY_QUEST_TEMPLATES.find(t=>t.id===q.id);
+                  return (
                   <div key={q.id} className={`shrink-0 p-2 rounded-lg border flex items-center gap-2 ${q.completed ? 'bg-green-900/20 border-green-500/50' : 'bg-slate-900 border-slate-800'}`}>
                       <div className="text-xs">{q.completed ? '✅' : '📜'}</div>
                       <div>
-                          <div className={`text-[10px] font-bold whitespace-nowrap ${q.completed ? 'text-green-400' : 'text-slate-300'}`}>{DAILY_QUEST_TEMPLATES.find(t=>t.id===q.id)?.title}</div>
-                          <div className="text-[8px] text-slate-500">{q.progress} / {q.target}</div>
+                          <div className={`text-[10px] font-bold whitespace-nowrap ${q.completed ? 'text-green-400' : 'text-slate-300'}`}>{tmpl?.title}</div>
+                          <div className="text-[8px] text-slate-500 flex gap-2">
+                             <span>{q.progress} / {q.target}</span>
+                             <span className="text-yellow-500">+{tmpl?.rewardMoney} ₽ +{tmpl?.rewardXp} XP</span>
+                          </div>
                       </div>
                   </div>
-              ))}
+              )})}
           </div>
       </div>
       
@@ -1735,19 +1680,14 @@ const App: React.FC = () => {
                       const itemDef = SHOP_ITEMS.find(i => i.id === inv.itemId);
                       if (!itemDef) return null;
                       let isActive = false;
-                      if (inv.itemId === 'INSURANCE' && player.activeBuffs?.insurance) isActive = true;
-                      if (inv.itemId === 'HORSESHOE' && player.activeBuffs?.horseshoe) isActive = true;
-                      if (inv.itemId === 'XP_BOOST' && player.activeBuffs?.xpBoost) isActive = true;
-                      if (inv.itemId === 'CRITICAL' && player.activeBuffs?.critical) isActive = true;
-                      if (inv.itemId === 'SHADOW' && player.activeBuffs?.shadow) isActive = true;
-                      if (inv.itemId === 'MAGNET' && player.activeBuffs?.magnet) isActive = true;
-                      if (inv.itemId === 'ORACLE' && player.activeBuffs?.oracle) isActive = true;
-                      if (inv.itemId === 'REVERSE' && player.activeBuffs?.reverse) isActive = true;
-                      if (inv.itemId === 'CHEATER' && player.activeBuffs?.cheater) isActive = true;
-                      if (inv.itemId === 'SAFETY' && player.activeBuffs?.safety) isActive = true;
-                      if (inv.itemId === 'VAMPIRISM' && player.activeBuffs?.vampirism) isActive = true;
-                      if (inv.itemId === 'PHOENIX' && player.activeBuffs?.phoenix) isActive = true;
-                      if (inv.itemId === 'TITAN' && player.activeBuffs?.titan) isActive = true;
+                      const activeBuffs = player.activeBuffs as any;
+                      const keyMap: Record<string, string> = {
+                        'INSURANCE': 'insurance', 'HORSESHOE': 'horseshoe', 'XP_BOOST': 'xpBoost',
+                        'CRITICAL': 'critical', 'SHADOW': 'shadow', 'MAGNET': 'magnet',
+                        'ORACLE': 'oracle', 'REVERSE': 'reverse', 'CHEATER': 'cheater',
+                        'SAFETY': 'safety', 'VAMPIRISM': 'vampirism', 'PHOENIX': 'phoenix', 'TITAN': 'titan'
+                      };
+                      if (keyMap[inv.itemId] && activeBuffs[keyMap[inv.itemId]]) isActive = true;
                       
                       return (
                           <button 
@@ -1787,7 +1727,7 @@ const App: React.FC = () => {
               <div className="text-4xl font-mono text-green-400 font-bold mt-2 text-shadow">
                   +{singleWinAmount.toLocaleString()} ₽
               </div>
-              <div className="text-sm font-bold text-yellow-500 mt-1">+{XP_PER_WIN} XP</div>
+              <div className="text-sm font-bold text-yellow-500 mt-1">+{player.history[0]?.amount && player.history[0].result === 'WIN' ? XP_FIXED_WIN : 0} XP</div>
            </div>
         )}
         {showSingleLoss && (
@@ -1798,7 +1738,7 @@ const App: React.FC = () => {
               <div className="text-4xl font-mono text-red-500 font-bold mt-2">
                   -{singleLossAmount.toLocaleString()} ₽
               </div>
-              <div className="text-sm font-bold text-slate-500 mt-1">+{XP_PER_LOSS} XP</div>
+              <div className="text-sm font-bold text-slate-500 mt-1">+{player.history[0]?.amount && player.history[0].result === 'LOSS' ? XP_FIXED_LOSS : 0} XP</div>
            </div>
         )}
 
@@ -1851,7 +1791,6 @@ const App: React.FC = () => {
 
       return (
           <div className={`bg-slate-900 p-4 rounded-xl border ${locked ? 'border-slate-800 opacity-60' : 'border-slate-700'} flex items-center justify-between relative overflow-hidden transition-all duration-300 ${purchaseSuccess ? 'border-green-500 bg-green-900/10' : ''}`}>
-              {/* Success Flash Overlay */}
               {purchaseSuccess && (
                   <div className="absolute inset-0 bg-green-500/20 z-10 animate-pulse flex items-center justify-center">
                       <div className="text-green-400 font-black text-2xl drop-shadow-md animate-pop-in">КУПЛЕНО</div>
@@ -1887,7 +1826,6 @@ const App: React.FC = () => {
 
       return (
       <div className="flex flex-col h-full p-4 overflow-y-auto pb-[80px]">
-          {/* Sticky Header */}
           <div className="sticky top-0 z-20 bg-[#020617]/95 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 border-b border-slate-800/50 mb-4">
               <div className="bg-gradient-to-r from-indigo-900 to-purple-900 p-4 rounded-2xl border border-indigo-500/30 relative overflow-hidden flex justify-between items-center">
                   <div className="relative z-10">
@@ -1944,10 +1882,6 @@ const App: React.FC = () => {
   )};
 
   const renderMultiplayerTab = () => {
-    // ... (Existing multiplayer render logic, updated to use player.totalXp if desired, or keep as is)
-    // To match the new state structure, just ensure player.level is accessed correctly, which it is.
-    
-    // Calculate display level for myself
     const myLevelTitle = player.activeBuffs?.shadow ? '???' : `Lvl ${player.level}`;
 
     return (
@@ -1963,7 +1897,6 @@ const App: React.FC = () => {
              </div>
         </div>
 
-        {/* INVENTORY QUICK ACCESS FOR PVP */}
         {player.inventory.length > 0 && pvpMode !== 'GAME' && (
             <div className="w-full mb-4">
                 <div className="text-[10px] text-slate-500 font-bold uppercase mb-1 px-1">Инвентарь (PvP)</div>
@@ -1972,30 +1905,24 @@ const App: React.FC = () => {
                         const itemDef = SHOP_ITEMS.find(i => i.id === inv.itemId);
                         if (!itemDef) return null;
                         
-                        // Filter useful items for PvP
                         const isUseful = ['INSURANCE', 'HORSESHOE', 'XP_BOOST', 'CRITICAL', 'SHADOW', 'GOD_MODE', 'PVP_TRICK', 'MULTIPLIER', 'UNFAIR'].includes(itemDef.type);
                         if (!isUseful) return null;
 
                         let isActive = false;
-                        if (inv.itemId === 'INSURANCE' && player.activeBuffs?.insurance) isActive = true;
-                        if (inv.itemId === 'HORSESHOE' && player.activeBuffs?.horseshoe) isActive = true;
-                        if (inv.itemId === 'XP_BOOST' && player.activeBuffs?.xpBoost) isActive = true;
-                        if (inv.itemId === 'CRITICAL' && player.activeBuffs?.critical) isActive = true;
-                        if (inv.itemId === 'SHADOW' && player.activeBuffs?.shadow) isActive = true;
-                        if (inv.itemId === 'MAGNET' && player.activeBuffs?.magnet) isActive = true;
-                        if (inv.itemId === 'ORACLE' && player.activeBuffs?.oracle) isActive = true;
-                        if (inv.itemId === 'REVERSE' && player.activeBuffs?.reverse) isActive = true;
-                        if (inv.itemId === 'SAFETY' && player.activeBuffs?.safety) isActive = true;
-                        if (inv.itemId === 'VAMPIRISM' && player.activeBuffs?.vampirism) isActive = true;
-                        if (inv.itemId === 'CHEATER' && player.activeBuffs?.cheater) isActive = true;
-                        if (inv.itemId === 'PHOENIX' && player.activeBuffs?.phoenix) isActive = true;
-                        if (inv.itemId === 'TITAN' && player.activeBuffs?.titan) isActive = true;
+                        const activeBuffs = player.activeBuffs as any;
+                        const keyMap: Record<string, string> = {
+                            'INSURANCE': 'insurance', 'HORSESHOE': 'horseshoe', 'XP_BOOST': 'xpBoost',
+                            'CRITICAL': 'critical', 'SHADOW': 'shadow', 'MAGNET': 'magnet',
+                            'ORACLE': 'oracle', 'REVERSE': 'reverse', 'SAFETY': 'safety',
+                            'VAMPIRISM': 'vampirism', 'CHEATER': 'cheater', 'PHOENIX': 'phoenix', 'TITAN': 'titan'
+                        };
+                        if (keyMap[inv.itemId] && activeBuffs[keyMap[inv.itemId]]) isActive = true;
                         
                         return (
                             <button 
                             key={idx} 
                             onClick={() => handleUseItem(inv.itemId)}
-                            disabled={isActive}
+                            disabled={isFlipping}
                             className={`relative shrink-0 w-12 h-12 rounded-xl flex items-center justify-center border transition-all ${isActive ? 'bg-blue-900 border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-slate-800 border-slate-700 active:scale-95'}`}
                             >
                                 <div className="text-2xl">{itemDef.icon}</div>
@@ -2071,7 +1998,6 @@ const App: React.FC = () => {
                         )}
                     </div>
                 </div>
-                {/* HOST CONTROLS - ONLY SHOW IF GUEST IS PRESENT AND STATUS READY */}
                 {activeRoom?.hostId === player.id && activeRoom?.guestId && (
                     <div className="animate-fade-in-up w-full max-w-xs">
                         <div className="text-center text-slate-400 text-xs mb-4">Выберите сторону, чтобы начать</div>
@@ -2081,7 +2007,6 @@ const App: React.FC = () => {
                         </div>
                     </div>
                 )}
-                {/* WAITING MESSAGE */}
                 {activeRoom?.hostId === player.id && !activeRoom?.guestId && (
                     <div className="flex flex-col items-center">
                          <div className="text-yellow-500 font-bold animate-pulse mb-4">Ожидание игрока...</div>
@@ -2092,8 +2017,6 @@ const App: React.FC = () => {
         )}
         {pvpMode === 'GAME' && (
              <div className="flex flex-col items-center justify-center relative w-full h-full">
-                 
-                 {/* SIDE INDICATOR TEXT FOR CLARITY */}
                  {activeRoom?.selectedSide && (
                      <div className="absolute top-4 left-0 right-0 flex flex-col items-center z-10">
                          {activeRoom.hostId === player.id ? (
@@ -2131,7 +2054,7 @@ const App: React.FC = () => {
                            <div className={`text-5xl md:text-7xl font-mono font-black ${pvpResult === 'WIN' ? 'text-green-400 drop-shadow-lg' : 'text-red-500'}`}>
                                {pvpResult === 'WIN' ? `+ ${Math.floor((activeRoom?.betAmount || 0) * 1.9).toLocaleString()} ₽` : `- ${(activeRoom?.betAmount || 0).toLocaleString()} ₽`}
                            </div>
-                           <div className="mt-4 text-yellow-500 font-bold">+{pvpResult === 'WIN' ? XP_PER_PVP_WIN : XP_PER_LOSS} XP</div>
+                           <div className="mt-4 text-yellow-500 font-bold">+{pvpResult === 'WIN' ? (XP_FIXED_WIN + XP_PVP_BONUS_FLAT) : (XP_FIXED_LOSS + XP_PVP_BONUS_FLAT)} XP</div>
                        </div>
                     </div>
                  )}
@@ -2141,7 +2064,6 @@ const App: React.FC = () => {
   )};
 
   const renderProfileTab = () => {
-      // Correctly Identify Top 1
       const isTop1 = leaders.length > 0 && leaders[0].id === player.id;
       
       return (
@@ -2173,7 +2095,6 @@ const App: React.FC = () => {
            </div>
        </div>
 
-       {/* RESET PROFILE BUTTON */}
        <button 
             onClick={() => setShowConfirmReset(true)}
             className="w-full bg-slate-800 border border-red-500/20 text-red-400 py-3 rounded-xl font-bold mb-4 flex items-center justify-center gap-2 hover:bg-red-900/10"
@@ -2181,7 +2102,6 @@ const App: React.FC = () => {
            ⚠️ Сбросить Прогресс
        </button>
        
-       {/* ADMIN BUTTON */}
        {isAdmin && (
            <button 
              onClick={() => setShowAdminModal(true)}
@@ -2217,12 +2137,12 @@ const App: React.FC = () => {
     if (!showHistoryModal) return null;
     const historyList = Array.isArray(player.history) ? player.history : [];
     return (
-        <div className="fixed inset-0 z-[70] bg-[#020617] flex flex-col animate-fade-in">
+        <div className="fixed inset-0 z-[150] bg-[#020617] flex flex-col animate-fade-in">
             <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900 shrink-0">
                 <h2 className="text-xl font-bold text-white">История Игр</h2>
                 <button 
                     onClick={() => setShowHistoryModal(false)} 
-                    className="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold active:bg-slate-700"
+                    className="bg-slate-800 text-white px-6 py-3 rounded-xl font-bold active:bg-slate-700 active:scale-95 transition-all shadow-lg border border-slate-700"
                 >
                     Закрыть
                 </button>
@@ -2290,7 +2210,6 @@ const App: React.FC = () => {
   );
 
   const renderChatTab = () => {
-    // Identify Top 1 Player
     const topLeaderId = leaders.length > 0 ? leaders[0].id : null;
 
     return (
@@ -2326,13 +2245,18 @@ const App: React.FC = () => {
       ) : (
           <>
             <GlobalTicker />
-            <AchievementToast achievement={activeAchievement} visible={showAchievement} />
-            {activeQuestToast && <QuestToast text={activeQuestToast.text} rewardMoney={activeQuestToast.reward} visible={!!activeQuestToast} />}
+            {/* Render Stacked Achievements */}
+            <div className="fixed top-12 left-0 right-0 z-[100] flex flex-col gap-2 pointer-events-none px-4">
+                {achievementQueue.map((ach, i) => (
+                    <AchievementToast key={i} achievement={ach} />
+                ))}
+            </div>
+            
+            {activeQuestToast && <QuestToast text={activeQuestToast.text} rewardMoney={activeQuestToast.reward} rewardXp={activeQuestToast.rewardXp} visible={!!activeQuestToast} />}
             {showHistoryModal && renderHistoryModal()}
             {showLevelModal && <LevelInfoModal level={player.level} xp={player.xp} totalXp={player.totalXp || player.xp} onClose={() => setShowLevelModal(false)} />}
             {showAdminModal && renderAdminModal()}
             
-            {/* LEVEL UP MODAL */}
             {levelUpData && (
                 <LevelUpModal 
                    level={levelUpData.level} 
@@ -2350,7 +2274,6 @@ const App: React.FC = () => {
                 />
             )}
             
-            {/* ADMIN CONFIRMATION MODALS */}
             {showConfirmClearChat && (
                 <ConfirmModal 
                     title="Очистка Чата"
