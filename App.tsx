@@ -42,20 +42,7 @@ import { firebaseService } from './services/firebaseService';
 import { onValue } from 'firebase/database';
 import { OpponentProfile } from './components/OpponentProfile';
 
-// Key for saving player state
-const STORAGE_KEY = 'gzhel_player_reset_v8_final'; 
-
 // --- UTILS ---
-const safeStorage = {
-    getItem: (key: string) => {
-        try { return localStorage.getItem(key); } catch(e) { return null; }
-    },
-    setItem: (key: string, value: string) => {
-        try { localStorage.setItem(key, value); } catch(e) {}
-    }
-};
-
-// Update: Leveling now based on Lifetime XP (totalXp) if available
 const getXpForLevel = (level: number) => {
     if (level >= LEVEL_THRESHOLDS.length) return LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1];
     return LEVEL_THRESHOLDS[level - 1];
@@ -121,7 +108,6 @@ const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
         if (playPromise !== undefined) {
             playPromise.catch((e) => {
                 if (e.name === 'AbortError') return;
-                // Audio autoplay blocked
                 setShowInteract(true);
             });
         }
@@ -253,7 +239,7 @@ const LevelInfoModal = ({ level, xp, totalXp, onClose }: { level: number, xp: nu
     )
 }
 
-const AchievementToast = ({ achievement }: { achievement: any }) => {
+const AchievementToast: React.FC<{ achievement: any }> = ({ achievement }) => {
   return (
     <div className={`transition-all duration-500 transform translate-y-0 opacity-100 mb-2`}>
        <div className="bg-slate-900 border border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.3)] rounded-2xl p-4 flex items-center gap-4">
@@ -788,7 +774,7 @@ const App: React.FC = () => {
       if(soundEnabled) soundManager.play('WIN');
       showToast(`+${HOURLY_BONUS_AMOUNT} ₽`);
 
-      setTimeout(() => setIsProcessingBonus(false), 1000); // Unlock after 1s
+      setTimeout(() => setIsProcessingBonus(false), 2000); // Unlock after 2s
   };
 
   const handleUseItem = (itemId: string) => {
