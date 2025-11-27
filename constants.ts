@@ -34,58 +34,59 @@ export const XP_FIXED_LOSS = 50;
 export const XP_PVP_BONUS_FLAT = 50; // Flat bonus for playing PvP
 export const MAX_XP_PER_GAME = 50000; // Safety cap per single game (mostly for Oracle buff)
 
-// Progressive Leveling System (Extended to 50)
+// Progressive Leveling System (Extended to 50) - SUPER ACCESSIBLE VERSION
+// Level 50 = 1,000,000 XP
 export const LEVEL_THRESHOLDS = [
   0,        // Lvl 1
-  2500,     // Lvl 2
-  7500,     // Lvl 3
-  15000,    // Lvl 4
-  25000,    // Lvl 5
-  40000,    // Lvl 6
-  60000,    // Lvl 7
-  90000,    // Lvl 8
-  130000,   // Lvl 9
-  180000,   // Lvl 10
-  250000,   // Lvl 11
-  350000,   // Lvl 12
-  500000,   // Lvl 13
-  700000,   // Lvl 14
-  1000000,  // Lvl 15
-  1500000,  // Lvl 16
-  2200000,  // Lvl 17
-  3000000,  // Lvl 18
-  4000000,  // Lvl 19
-  5500000,  // Lvl 20
-  7500000,  // Lvl 21
-  10000000, // Lvl 22
-  15000000, // Lvl 23
-  25000000, // Lvl 24
-  50000000, // Lvl 25
-  75000000, // Lvl 26
-  100000000, // Lvl 27
-  125000000, // Lvl 28
-  150000000, // Lvl 29
-  175000000, // Lvl 30 (Titan)
-  200000000, // Lvl 31
-  250000000, // Lvl 32
-  300000000, // Lvl 33
-  350000000, // Lvl 34
-  400000000, // Lvl 35 (Phoenix)
-  450000000, // Lvl 36
-  500000000, // Lvl 37
-  550000000, // Lvl 38
-  600000000, // Lvl 39
-  650000000, // Lvl 40 (Titan Unlocked)
-  700000000, // Lvl 41
-  750000000, // Lvl 42
-  800000000, // Lvl 43
-  850000000, // Lvl 44
-  900000000, // Lvl 45
-  950000000, // Lvl 46
-  1000000000, // Lvl 47
-  1100000000, // Lvl 48
-  1200000000, // Lvl 49
-  1300000000  // Lvl 50 (God's Eye) - MAX LEVEL CAP
+  100,      // Lvl 2
+  500,      // Lvl 3
+  1500,     // Lvl 4
+  3000,     // Lvl 5
+  5000,     // Lvl 6
+  8000,     // Lvl 7
+  12000,    // Lvl 8
+  18000,    // Lvl 9
+  25000,    // Lvl 10 (Master)
+  35000,    // Lvl 11
+  45000,    // Lvl 12
+  60000,    // Lvl 13
+  80000,    // Lvl 14
+  100000,   // Lvl 15
+  125000,   // Lvl 16
+  150000,   // Lvl 17
+  180000,   // Lvl 18
+  210000,   // Lvl 19
+  250000,   // Lvl 20 (Silver)
+  290000,   // Lvl 21
+  330000,   // Lvl 22
+  380000,   // Lvl 23
+  430000,   // Lvl 24
+  480000,   // Lvl 25
+  540000,   // Lvl 26
+  600000,   // Lvl 27
+  660000,   // Lvl 28
+  720000,   // Lvl 29
+  780000,   // Lvl 30 (Gold)
+  840000,   // Lvl 31
+  900000,   // Lvl 32
+  960000,   // Lvl 33
+  970000,   // Lvl 34
+  980000,   // Lvl 35
+  990000,   // Lvl 36
+  995000,   // Lvl 37
+  1000000,  // Lvl 38
+  1005000,  // Lvl 39
+  1010000,  // Lvl 40 (Titan)
+  1015000,  // Lvl 41
+  1020000,  // Lvl 42
+  1025000,  // Lvl 43
+  1030000,  // Lvl 44
+  1035000,  // Lvl 45
+  1040000,  // Lvl 46
+  1045000,  // Lvl 47
+  1050000,  // Lvl 48
+  1055000,  // Lvl 49
+  1060000   // Lvl 50 (MAX) - Around 1M XP Base
 ];
 
 export const MAX_LEVEL = 50;
@@ -219,7 +220,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'REVERSE',
     name: 'Реверс Времени',
     description: 'Solo/PvP: 100% возврат денег при проигрыше.',
-    price: 30000, // As requested
+    price: 30000, 
     icon: '↩️',
     type: 'GOD_MODE',
     minLevel: 30
@@ -230,7 +231,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     id: 'PHOENIX',
     name: 'Феникс',
     description: 'PvP/Solo: 33% шанс воскреснуть после проигрыша (Возврат ставки).',
-    price: 10000, // As requested
+    price: 10000, 
     icon: '🔥',
     type: 'GOD_MODE',
     minLevel: 35
